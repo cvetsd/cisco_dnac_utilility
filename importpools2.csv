@@ -1,0 +1,2 @@
+Pool Name, Subnet, Site Name, Global Pool Name, DHCP Server IPs, DNS Server IPs, Default Gateway
+POOL_EU_FIAB_L3_HANDOFF,10.255.252.0/24,FIAB,POOL_10/8,10.255.255.23,10.255.255.23,10.255.252.1
