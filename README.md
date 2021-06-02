@@ -13,3 +13,4 @@ OR leave out the paramaters if you prefer
 ```
 python3 DNAC_Utility_v02.py
 ```
+* Script demonstration: https://youtu.be/Wc98LCi5JCI
