@@ -9,3 +9,7 @@
  python3 DNAC_Utility_v02.py CreateNetworkSettings
  python3 DNAC_Utility_v02.py ImportFromExcel
 ```
+OR leave out the paramaters if you prefer
+```
+python3 DNAC_Utility_v02.py
+```
