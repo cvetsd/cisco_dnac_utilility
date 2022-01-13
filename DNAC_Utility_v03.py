@@ -63,6 +63,8 @@ def CheckUsage(argvlocal):
         pass
     elif Action.lower() == 'importfromexcel':
         pass
+    elif Action.lower() == 'deletefromexcel':
+        pass
     else:
         printusage(argvlocal)
         printusertext("Didn't match any actions available actions")
@@ -78,6 +80,7 @@ def printusage(argvlocal):
     printusertext(f'python3 {argvlocal[0]} CreateDeviceCredentials')
     printusertext(f'python3 {argvlocal[0]} CreateNetworkSettings')
     printusertext(f'python3 {argvlocal[0]} ImportFromExcel')
+    printusertext(f'python3 {argvlocal[0]} DeleteFromExcel')
 
 def printusertext(p_message):
     # prints a line of text that is meant for the user to read
@@ -246,6 +249,14 @@ def ImportSites(xlSheet, DNAC_SDK):
                 SiteType = cell.value
             elif column == 4 and SiteType.lower() == 'building':
                 SiteAddress = cell.value
+            elif column == 5 and SiteType.lower() == 'floor':
+                FloorRfModel = cell.value
+            elif column == 6 and SiteType.lower() == 'floor':
+                FloorWidth = cell.value
+            elif column == 7 and SiteType.lower() == 'floor':
+                FloorLength = cell.value
+            elif column == 8 and SiteType.lower() == 'floor':
+                FloorHeight = cell.value
             column += 1
         mylogger(f'{lineno()} SiteHierarchy value: {SiteHierarchy} Row: {row}')
         SplitSite = SiteHierarchy.split("/")
@@ -268,6 +279,20 @@ def ImportSites(xlSheet, DNAC_SDK):
             #populate responses to check their status           
             Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "building"))
             Responses[len(Responses) - 1].update({'SiteName': SiteName})
+        elif SiteType.lower() == 'floor':
+            PAYLOAD = {
+                "floor": {
+                    "name": SiteName,
+                    "parentName": ParentName,
+                    "rfModel": FloorRfModel,
+                    "width": FloorWidth,
+                    "length": FloorLength,
+                    "height": FloorHeight
+                }
+            }
+            #populate responses to check their status           
+            Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "floor"))
+            Responses[len(Responses) - 1].update({'SiteName': SiteName})
         else:
             PAYLOAD = {
                 "area": {
@@ -279,6 +304,38 @@ def ImportSites(xlSheet, DNAC_SDK):
             Responses[len(Responses) - 1].update({'SiteName': SiteName})
         sleep(1)
     checkResponses(Responses, DNAC_SDK)
+
+def DeleteSite(siteId, DNAC_SDK):
+    myResponse = DNAC_SDK.sites.delete_site(siteId)
+    checkResponses([myResponse], DNAC_SDK)
+
+def DeleteSitesFromSheet(xlSheet, DNAC_SDK):
+    SiteType = ''
+    ParentName = ''
+    Responses = []
+    SiteNames = []
+    for row in range(2, xlSheet.max_row+1):
+        column = 1
+        for cell in xlSheet[row]:
+            if column == 2:
+                SiteHierarchy = cell.value
+            column += 1
+        mylogger(f'{lineno()} SiteHierarchy value: {SiteHierarchy} Row: {row}')
+        FullSiteName = "Global/" + SiteHierarchy
+        SiteNames.append(FullSiteName)
+    
+    AllSites = getSitesSDK(DNAC_SDK)
+    x = 1
+    while x <= len(SiteNames):
+        try:
+            mySiteId = AllSites[SiteNames[len(SiteNames) - x]]
+            mylogger(f'{lineno()} Site: {SiteNames[len(SiteNames) - x]} being deleted')
+            DeleteSite(mySiteId, DNAC_SDK)
+            print(f'Deleted site: {SiteNames[len(SiteNames) - x]}')
+        except KeyError:
+            mylogger(f'{lineno()} Site: {SiteNames[len(SiteNames) - x]} not found for deletion')
+            pass
+        x = x + 1
 
 def checkResponses(Responses, DNAC_SDK):
     for response in Responses:
@@ -504,6 +561,7 @@ def getTaskStatus(taskId, AuthKey):
 
 def getExecutionStatus(taskId, AuthKey):
     URL = f'https://{HOST}/dna/platform/management/business-api/v1/execution-status/{taskId}'
+
     HEADERS = {
             'content-type': "application/json",
             'x-auth-token': AuthKey
@@ -511,6 +569,11 @@ def getExecutionStatus(taskId, AuthKey):
     mylogger(f'{lineno()} About to retrieve execution status for task: {taskId}')
     response = requests.get(url=URL, headers=HEADERS, verify=False)
     mylogger(f'{lineno()} response.text: {response.text}')
+    if response.json()['status'] == "IN_PROGRESS":
+        mylogger(f'{lineno()} Response in progress. Sleep 1 second and try again')
+        print(f'Response in progress. Will retry in 1 second')
+        sleep(2)
+        getExecutionStatus(taskId, AuthKey)
 
 def createglobalpool(DNAC_SDK):
     isSuccess = False
@@ -586,6 +649,9 @@ def main(argv):
     try:
         # set default values for command line arguments
         initlogging(argv)
+        global username
+        global password
+        global HOST
         myAction = CheckUsage(argv)
         while not myAction:
             newAction = input('Please choose option: ')
@@ -597,6 +663,18 @@ def main(argv):
         while not myTokenSuccess:
             try:
                 import login
+                if hasattr(login, 'username'):
+                    username = login.username
+                if hasattr(login, 'password'):
+                    password = login.password
+                if hasattr(login, 'HOST'):
+                    HOST = login.HOST
+                if username == '':
+                    username = input('Enter your DNAC username: ')
+                if password == '':
+                    password = getpass('Enter your DNAC password: ')
+                if HOST == '':
+                    HOST = input("Please enter the DNAC's IP address: ")
             except ImportError:
                 username = input('Enter your DNAC username: ')
                 password = getpass('Enter your DNAC password: ')
@@ -671,10 +749,19 @@ def main(argv):
             for sheet in mywb.sheetnames:
                 if sheet == 'Sites':
                     ImportSites(mywb[sheet], dnac_api)
-                elif sheet == 'Pools':
-                    ImportPools(mywb[sheet], dnac_api)
+                #elif sheet == 'Pools':
+                #    ImportPools(mywb[sheet], dnac_api)
                 #elif sheet == 'Credentials':
                 #    ImportCredentials(mywb[sheet], dnac_api)
+
+        elif myArgv[1].lower() == 'deletefromexcel':
+            filename = input('Excel file name (xlsx): ')
+            import openpyxl as xl
+            mywb = xl.load_workbook(filename)
+
+            for sheet in mywb.sheetnames:
+                if sheet == 'Sites':
+                    DeleteSitesFromSheet(mywb[sheet], dnac_api)
                 
 
 
