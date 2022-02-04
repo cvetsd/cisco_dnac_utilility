@@ -127,3 +127,10 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+alv_template.xlsx
+alv_floor_only.xlsx
+alv_template2.xlsx
+.DS_Store
+.gitignore
+logs/20220119_1121_main.log.1
+logs/20220204_1619_main.log.1

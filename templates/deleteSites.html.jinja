@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="col-12 col-lg-9 col-xl-10">
+    <div class="section">
+        <div class="row">
+            <div class="col-xl-8">
+                <div class="panel panel--loose panel--raised base-margin-bottom">
+                    <h2 class="subtitle">Delete From DNAC Site Hierarchy</h2>
+                    <hr>
+                    <div class="section">
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="subheader">Select Excel file
+                                    <form action="{{ url_for('delete_post')}}" method="POST" name="deleteSites" class="deleteSites" id="deleteSites" enctype="multipart/form-data">
+                                        <div class="form-group base-margin-bottom">
+                                            <div class="form-group__text">
+                                                <input type="file" accept=".xlsx,xls" id="file-select" name="file-select">
+                                            </div>
+                                        </div>
+                                </div>
+                            </div>                            
+                        </div>
+                        <div class="row">
+                            <div class="col-md-6">
+                                    <button type= "submit" class="btn btn--secondary">Delete</button>
+                                </form>
+                                <br>
+                            </div>                            
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

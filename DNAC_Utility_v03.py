@@ -302,14 +302,88 @@ def ImportSites(xlSheet, DNAC_SDK):
             }
             Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "area"))
             Responses[len(Responses) - 1].update({'SiteName': SiteName})
+        
         sleep(1)
     checkResponses(Responses, DNAC_SDK)
+
+def ImportSitesWithYield(xlSheet, DNAC_SDK):
+    mylogger(f'{lineno()} Beginning to run ImportSitesWithYield')
+    SiteType = ''
+    ParentName = ''
+    Responses = []
+    for row in range(2, xlSheet.max_row+1):
+        column = 1
+        for cell in xlSheet[row]:
+            if column == 2:
+                SiteHierarchy = cell.value
+            elif column == 3:
+                SiteType = cell.value
+            elif column == 4 and SiteType.lower() == 'building':
+                SiteAddress = cell.value
+            elif column == 5 and SiteType.lower() == 'floor':
+                FloorRfModel = cell.value
+            elif column == 6 and SiteType.lower() == 'floor':
+                FloorWidth = cell.value
+            elif column == 7 and SiteType.lower() == 'floor':
+                FloorLength = cell.value
+            elif column == 8 and SiteType.lower() == 'floor':
+                FloorHeight = cell.value
+            column += 1
+        mylogger(f'{lineno()} SiteHierarchy value: {SiteHierarchy} Row: {row}')
+        SplitSite = SiteHierarchy.split("/")
+        if isinstance(SplitSite,list):
+            SiteName = SplitSite[len(SplitSite) - 1]
+            SplitSite.pop()
+            ParentName = "Global/" + '/'.join(SplitSite)
+        else:
+            ParentName = "Global"
+            SiteName = SiteHierarchy
+        
+        if SiteType.lower() == 'building':
+            PAYLOAD = {
+                "building": {
+                    "name": SiteName,
+                    "parentName": ParentName,
+                    "address": SiteAddress
+                }
+            }
+            #populate responses to check their status           
+            Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "building"))
+            Responses[len(Responses) - 1].update({'SiteName': SiteName})
+        elif SiteType.lower() == 'floor':
+            PAYLOAD = {
+                "floor": {
+                    "name": SiteName,
+                    "parentName": ParentName,
+                    "rfModel": FloorRfModel,
+                    "width": FloorWidth,
+                    "length": FloorLength,
+                    "height": FloorHeight
+                }
+            }
+            #populate responses to check their status           
+            Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "floor"))
+            Responses[len(Responses) - 1].update({'SiteName': SiteName})
+        else:
+            PAYLOAD = {
+                "area": {
+                    "name": SiteName,
+                    "parentName": ParentName
+                }
+            }
+            Responses.append(CreateSiteSDK(DNAC_SDK, PAYLOAD, "area"))
+            Responses[len(Responses) - 1].update({'SiteName': SiteName})
+        
+        yield f'Created site: {SiteName}'
+        sleep(1)
+    checkResponses(Responses, DNAC_SDK)
+    return "done"
 
 def DeleteSite(siteId, DNAC_SDK):
     myResponse = DNAC_SDK.sites.delete_site(siteId)
     checkResponses([myResponse], DNAC_SDK)
 
-def DeleteSitesFromSheet(xlSheet, DNAC_SDK):
+def DeleteSitesFromSheet(xlSheet, DNAC_SDK, iterate = False):
     SiteType = ''
     ParentName = ''
     Responses = []
@@ -331,7 +405,9 @@ def DeleteSitesFromSheet(xlSheet, DNAC_SDK):
             mySiteId = AllSites[SiteNames[len(SiteNames) - x]]
             mylogger(f'{lineno()} Site: {SiteNames[len(SiteNames) - x]} being deleted')
             DeleteSite(mySiteId, DNAC_SDK)
-            print(f'Deleted site: {SiteNames[len(SiteNames) - x]}')
+            if iterate:
+                yield SiteNames[len(SiteNames) - x]
+            mylogger(f'Deleted site: {SiteNames[len(SiteNames) - x]}')
         except KeyError:
             mylogger(f'{lineno()} Site: {SiteNames[len(SiteNames) - x]} not found for deletion')
             pass
